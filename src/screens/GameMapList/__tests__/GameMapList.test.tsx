@@ -1,10 +1,25 @@
 import { render, screen, waitFor } from '@testing-library/react';
 import '@testing-library/jest-dom';
-import GameMapListScreen from '../index';
+import GameMapListScreen from '../GameMapList.tsx';
 import MockAdapter from 'axios-mock-adapter';
 import api from '@/common/api';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 const mockApi = new MockAdapter(api);
+
+// Create a wrapper component with QueryClientProvider
+const renderWithQueryClient = (ui: React.ReactElement) => {
+  const queryClient = new QueryClient({
+    defaultOptions: {
+      queries: {
+        retry: false,
+      },
+    },
+  });
+  return render(
+    <QueryClientProvider client={queryClient}>{ui}</QueryClientProvider>,
+  );
+};
 
 describe('GameMapList', () => {
   beforeEach(() => {
@@ -12,14 +27,14 @@ describe('GameMapList', () => {
   });
 
   it('should show loading state initially', () => {
-    render(<GameMapListScreen />);
+    renderWithQueryClient(<GameMapListScreen />);
     expect(screen.getByTestId('loading')).toBeInTheDocument();
   });
 
   it('should show error message when API call fails with 500 status', async () => {
-    mockApi.onGet('/maps').reply(500);
+    mockApi.onGet('/nades').reply(500);
 
-    render(<GameMapListScreen />);
+    renderWithQueryClient(<GameMapListScreen />);
 
     await waitFor(() => {
       const errorElement = screen.getByTestId('error-message');
@@ -29,9 +44,9 @@ describe('GameMapList', () => {
   });
 
   it('should show forbidden message when API call fails with 403 status', async () => {
-    mockApi.onGet('/maps').reply(403);
+    mockApi.onGet('/nades').reply(403);
 
-    render(<GameMapListScreen />);
+    renderWithQueryClient(<GameMapListScreen />);
 
     await waitFor(() => {
       const errorElement = screen.getByTestId('error-message');
@@ -41,40 +56,59 @@ describe('GameMapList', () => {
   });
 
   it('should display game maps when API call succeeds', async () => {
-    const mockMaps = [
-      { id: 1, name: 'Dust II' },
-      { id: 2, name: 'Mirage' },
-      { id: 3, name: 'Inferno' },
+    const mockServerMaps = [
+      { id: 1, map_name: 'Dust 2' },
+      { id: 2, map_name: 'Mirage' },
     ];
 
-    mockApi.onGet('/maps').reply(200, mockMaps);
+    mockApi.onGet('/nades').reply(200, mockServerMaps);
 
-    render(<GameMapListScreen />);
+    renderWithQueryClient(<GameMapListScreen />);
 
     await waitFor(() => {
       expect(screen.queryByTestId('loading')).not.toBeInTheDocument();
     });
 
-    expect(screen.getByText('Game Map List')).toBeInTheDocument();
+    expect(screen.getByText('GameMap List')).toBeInTheDocument();
 
-    mockMaps.forEach((map) => {
-      expect(screen.getByText(map.name)).toBeInTheDocument();
+    // Check that the transformed data is displayed correctly
+    mockServerMaps.forEach((map) => {
+      expect(screen.getByText(map.map_name)).toBeInTheDocument();
+    });
+  });
+
+  it('should transform API data correctly', async () => {
+    const mockServerMaps = [
+      { id: 1, map_name: 'Dust 2' },
+      { id: 2, map_name: 'Mirage' },
+    ];
+
+    mockApi.onGet('/nades').reply(200, mockServerMaps);
+
+    renderWithQueryClient(<GameMapListScreen />);
+
+    await waitFor(() => {
+      expect(screen.queryByTestId('loading')).not.toBeInTheDocument();
+    });
+
+    // Verify that the data transformation from GameMapServer to GameMap works correctly
+    mockServerMaps.forEach((serverMap) => {
+      expect(screen.getByText(serverMap.map_name)).toBeInTheDocument();
     });
   });
 
   it('should display empty list when API returns no maps', async () => {
-    mockApi.onGet('/maps').reply(200, []);
+    mockApi.onGet('/nades').reply(200, []);
 
-    render(<GameMapListScreen />);
+    renderWithQueryClient(<GameMapListScreen />);
 
     await waitFor(() => {
       expect(screen.queryByTestId('loading')).not.toBeInTheDocument();
     });
 
-    expect(screen.getByText('Game Map List')).toBeInTheDocument();
+    expect(screen.getByText('GameMap List')).toBeInTheDocument();
 
-    expect(
-      screen.queryByText(/Dust II|Mirage|Inferno/),
-    ).not.toBeInTheDocument();
+    // Verify no map items are rendered
+    expect(screen.queryByText(/Dust|Mirage/)).not.toBeInTheDocument();
   });
 });
