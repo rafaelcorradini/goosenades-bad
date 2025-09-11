@@ -1,31 +1,44 @@
-import api from '@/common/api';
-import Loading from '@/components/Loading/Loading.tsx';
-import { Card } from '@mui/material';
-import Typography from '@mui/material/Typography';
-import { AxiosError } from 'axios';
-import ErrorMessage from '@/components/ErrorMessage/ErrorMessage.tsx';
-import { useQuery } from '@tanstack/react-query';
+import api from "@/common/api";
+import Loading from "@/components/Loading/Loading.tsx";
+import { Container } from "@mui/material";
+import Typography from "@mui/material/Typography";
+import { AxiosError } from "axios";
+import ErrorMessage from "@/components/ErrorMessage/ErrorMessage.tsx";
+import { useQuery } from "@tanstack/react-query";
+import { Link } from "react-router-dom";
+import { Image } from "@heroui/image";
+import { Card } from "@/components/Card/Card.tsx";
 
 interface GameMapServer {
-  id: number;
-  map_name: string;
+  id: string;
+  name: string;
+  image: string;
+  logo: string;
+  createdAt: string;
+  updatedAt: string;
 }
 
 interface GameMap {
-  id: number;
+  id: string;
   name: string;
+  backgroundUrl: string;
+  logoUrl: string;
 }
 
 function GameMapListScreen() {
   const { data, isPending, error } = useQuery<GameMap[], AxiosError>({
     queryFn: async () => {
-      const { data } = await api.get<GameMapServer[]>('/nades');
-      return data.map((nade: GameMapServer) => ({
-        id: nade.id,
-        name: nade.map_name,
+      const { data } = await api.get<GameMapServer[]>(
+        `${import.meta.env.VITE_API_URL}/maps`,
+      );
+      return data.map((map: GameMapServer) => ({
+        id: map.id,
+        name: map.name,
+        backgroundUrl: map.image,
+        logoUrl: map.logo,
       }));
     },
-    queryKey: ['nade-list'],
+    queryKey: ["map-list"],
   });
 
   if (isPending) {
@@ -41,14 +54,46 @@ function GameMapListScreen() {
   }
 
   return (
-    <div>
-      <h1>GameMap List</h1>
-      {data?.map((nade) => (
-        <Card key={nade.id}>
-          <Typography key={nade.id}>{nade.name}</Typography>
-        </Card>
-      ))}
-    </div>
+    <Container>
+      <Typography
+        marginTop={6}
+        marginBottom={4}
+        className="text-white/80"
+        fontWeight={600}
+        fontSize={24}
+      >
+        Maps
+      </Typography>
+      <div data-testid="game-map-list" className="grid grid-cols-4 gap-4">
+        {data?.map((gameMap) => (
+          <Link key={gameMap.id} to={`/map/${gameMap.id}`}>
+            <Card
+              footer={
+                <p className="text-large text-white/80">{gameMap.name}</p>
+              }
+            >
+              <div className="relative w-full h-64">
+                <Image
+                  className="absolute top-15 left-22 z-99999"
+                  alt={`A logo of ${gameMap.name} map`}
+                  src={gameMap.logoUrl}
+                  width={100}
+                  height={100}
+                />
+
+                <Image
+                  isZoomed
+                  isBlurred
+                  alt={`A picture of ${gameMap.name} map`}
+                  className="object-cover"
+                  src={gameMap.backgroundUrl}
+                />
+              </div>
+            </Card>
+          </Link>
+        ))}
+      </div>
+    </Container>
   );
 }
 
